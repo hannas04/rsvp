@@ -143,8 +143,8 @@ section{position:relative;padding:clamp(80px,13vw,140px) 22px;overflow:hidden}
 .gallery-nav{position:absolute;top:50%;z-index:2;display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(255,255,255,.75);border-radius:50%;background:rgba(20,8,14,.62);color:#fff;font-size:1.35rem;transform:translateY(-50%);transition:background .25s ease,transform .25s var(--ease)}
 .gallery-nav:hover{background:var(--acc);transform:translateY(-50%) scale(1.06)}
 .gallery-prev{left:22px}.gallery-next{right:22px}
-@media(max-width:760px){.gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:auto;gap:12px}.gallery-item,.gallery-item:first-child,.gallery-item:nth-child(2){grid-column:auto;grid-row:auto;aspect-ratio:4/5}.gallery-caption{left:16px;right:16px;bottom:16px}}
-@media(max-width:420px){.gallery-grid{gap:9px}.gallery-caption strong{font-size:1.05rem}.gallery-caption .gallery-count{font-size:.46rem}}
+@media(max-width:760px){.gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,clamp(170px,42vw,280px)) clamp(150px,34vw,220px);gap:12px}.gallery-item:first-child{grid-column:1;grid-row:span 2;aspect-ratio:auto}.gallery-item:nth-child(2),.gallery-item:nth-child(3){grid-column:2;aspect-ratio:auto}.gallery-item:nth-child(4){grid-column:1/-1;grid-row:3;aspect-ratio:auto}.gallery-caption{left:16px;right:16px;bottom:16px}.gallery-item::before{content:"";position:absolute;inset:30% 0 0;background:linear-gradient(transparent,rgba(26,8,18,.48));z-index:1;pointer-events:none}}
+@media(max-width:420px){.gallery-grid{grid-template-rows:repeat(2,clamp(160px,43vw,205px)) clamp(140px,38vw,180px);gap:9px}.gallery-caption strong{font-size:1.05rem}.gallery-caption .gallery-count{font-size:.46rem}}
 @media(max-width:480px){.gallery-prev{left:10px}.gallery-next{right:10px}.gallery-nav{width:40px;height:40px}}
 @media(prefers-reduced-motion:reduce){.gallery-open img,.gallery-nav{transition:none}}
 .story p{margin-bottom:1.1em;font-size:1.22rem}
@@ -154,12 +154,13 @@ section{position:relative;padding:clamp(80px,13vw,140px) 22px;overflow:hidden}
 .cg{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;row-gap:8px;font-family:var(--caps)}
 .cg .dow{font-family:var(--sans);font-size:.55rem;letter-spacing:.14em;color:var(--acc);font-weight:500}
 .cg .d{position:relative;line-height:2}.cg .d.hit{font-weight:700;color:#fff}
-.cg .d.hit::before{content:"♥";position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);font-size:2.6rem;color:var(--acc);z-index:-1;animation:beat 1.6s ease-in-out infinite}
+.cg .d.hit::before{content:"";position:absolute;left:50%;top:50%;width:2.4rem;height:2.4rem;transform:translate(-50%,-52%);background:var(--acc);clip-path:polygon(50% 90%,10% 55%,0 38%,0 25%,10% 10%,25% 5%,40% 10%,50% 22%,60% 10%,75% 5%,90% 10%,100% 25%,100% 38%,90% 55%);z-index:-1;animation:beat 1.6s ease-in-out infinite}
 @keyframes beat{50%{transform:translate(-50%,-52%) scale(1.15)}}
 .loc{text-align:center;margin-top:18px}
 .loc b{display:block;font-family:var(--caps);font-weight:500;letter-spacing:.2em;text-transform:uppercase;font-size:.95rem}
 .player{margin-top:30px;display:flex;align-items:center;gap:16px;padding:14px 18px;border:1px solid var(--hair);max-width:360px}
-.pbtn{width:46px;height:46px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;flex:none;font-size:.9rem}
+.pbtn{width:46px;height:46px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;flex:none}
+.pbtn svg{width:18px;height:18px}
 .pmeta{flex:1}.pmeta b{display:block;font-family:var(--caps);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase}
 .pmeta small{font-style:italic;font-size:.95rem}
 .bars{display:flex;gap:3px;align-items:flex-end;height:26px}
@@ -258,15 +259,15 @@ footer p{font-family:var(--sans);font-size:.6rem;letter-spacing:.34em;text-trans
 .film-t p{font-family:var(--caps);letter-spacing:.3em;text-transform:uppercase;font-size:clamp(.8rem,2.6vw,1.1rem);margin-top:16px}
 .cb{position:absolute;left:0;right:0;height:9vh;background:#000;z-index:5;transform:scaleY(0)}.cb.t{top:0;transform-origin:top}.cb.b{bottom:0;transform-origin:bottom}
 .vig{position:absolute;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.6))}
-@media(max-width:700px),(pointer:coarse),(prefers-reduced-motion:reduce){
+@media(max-width:700px),(pointer:coarse){
   #film{height:auto;min-height:100svh;padding:40px 22px}
   .film-pin{height:auto;min-height:100svh;display:flex;flex-direction:column;justify-content:center;gap:clamp(24px,6vh,52px);padding:64px 0}
-  .film-t{position:relative;inset:auto;min-height:0;padding:0 10px;opacity:1}
+  .film-t{position:relative;inset:auto;min-height:0;padding:0 10px;opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s var(--ease)}
+  .film-t.is-visible{opacity:1;transform:translateY(0)}
   .film-t .script{font-size:clamp(2.6rem,12vw,4.4rem)}
   .cb{display:none}
-  .petals{display:none}
 }
-@media(prefers-reduced-motion:reduce){.walker,.ground{display:none}}
+@media(prefers-reduced-motion:reduce){.walker,.ground,.petals{display:none}.film-t,.film-t.is-visible{opacity:1;transform:none;transition:none}}
 </style>
 </head>
 <body>
@@ -365,7 +366,7 @@ footer p{font-family:var(--sans);font-size:.6rem;letter-spacing:.34em;text-trans
           <div class="loc"><b>Lagos, Nigeria</b><i>Formal invitation to follow</i></div>
         </div>
         <div class="player" id="player" data-r>
-          <button class="pbtn" id="pbtn" aria-label="Play our song">▶</button>
+          <button class="pbtn" id="pbtn" aria-label="Play our song"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor"/></svg></button>
           <div class="pmeta"><b>Our Song</b><small>Tap to play</small></div>
           <div class="bars"><i></i><i></i><i></i><i></i></div>
         </div>
@@ -545,10 +546,12 @@ gsap.registerPlugin(ScrollTrigger);
 
 /* ---------- falling petals ---------- */
 (function(){
-  if(reduce||touchDevice)return;const cv=$('#petals'),c=cv.getContext('2d');let W,H,lastFrame=0;const P=[];
+  if(reduce)return;const cv=$('#petals'),c=cv.getContext('2d');let W,H,lastFrame=0;
+  const mobile=touchDevice||matchMedia('(max-width:700px)').matches;
+  const P=[];
   const rs=()=>{W=cv.width=innerWidth;H=cv.height=innerHeight};rs();addEventListener('resize',rs);
-  for(let i=0;i<8;i++)P.push({x:Math.random(),y:Math.random(),s:Math.random()*7+6,v:Math.random()*.00012+.00005,a:Math.random()*6.28,r:Math.random()*6.28,w:Math.random()*.002+.0008});
-  gsap.ticker.add(()=>{const t=performance.now();if(document.hidden||t-lastFrame<33)return;lastFrame=t;c.clearRect(0,0,W,H);
+  for(let i=0;i<(mobile?6:10);i++)P.push({x:Math.random(),y:Math.random(),s:Math.random()*7+6,v:Math.random()*.00012+.00005,a:Math.random()*6.28,r:Math.random()*6.28,w:Math.random()*.002+.0008});
+  gsap.ticker.add(()=>{const t=performance.now();if(document.hidden||t-lastFrame<(mobile?50:33))return;lastFrame=t;c.clearRect(0,0,W,H);
     for(const p of P){p.y+=p.v*16;p.r+=.01;p.x+=Math.sin(t*p.w+p.a)*.0004;if(p.y>1.05){p.y=-.05;p.x=Math.random()}
       c.save();c.translate(p.x*W,p.y*H);c.rotate(p.r);c.scale(1,.6+.4*Math.sin(t*p.w*3+p.a));c.globalAlpha=.7;
       c.fillStyle='#f48fb6';c.beginPath();c.ellipse(0,0,p.s*.55,p.s,0,0,6.28);c.fill();c.restore()}});
@@ -643,7 +646,15 @@ if(!reduce){
 (function(){
   if(reduce)return;
   if(nativeScroll){
-    $$('.film-t').forEach(el=>gsap.fromTo(el,{opacity:0,y:14},{opacity:1,y:0,duration:.65,ease:'power2.out',immediateRender:false,scrollTrigger:{trigger:el,start:'top 82%',once:true}}));
+    const filmObserver=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          entry.target.classList.add('is-visible');
+          filmObserver.unobserve(entry.target);
+        }
+      });
+    },{threshold:.25});
+    $$('.film-t').forEach(el=>filmObserver.observe(el));
     return;
   }
   const tl=gsap.timeline({scrollTrigger:{trigger:'#film',start:'top top',end:'+=180%',scrub:.25,pin:true,refreshPriority:1}});
@@ -721,8 +732,9 @@ $('#hash').addEventListener('click',()=>{navigator.clipboard?.writeText($('#hash
   $('#galleryClose').addEventListener('click',()=>dialog.close());
   dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close()});
 })();
-(function(){const p=$('#player'),a=CONFIG.musicUrl?new Audio(CONFIG.musicUrl):null;
-  $('#pbtn').addEventListener('click',()=>{const on=p.classList.toggle('playing');$('#pbtn').textContent=on?'❚❚':'▶';$('.pmeta small',p).textContent=on?'Now playing':'Tap to play';if(a){on?a.play():a.pause()}})})();
+(function(){const p=$('#player'),button=$('#pbtn'),a=CONFIG.musicUrl?new Audio(CONFIG.musicUrl):null;
+  const icons={play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor"/></svg>',pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z" fill="currentColor"/></svg>'};
+  button.addEventListener('click',()=>{const on=p.classList.toggle('playing');button.innerHTML=on?icons.pause:icons.play;button.setAttribute('aria-label',on?'Pause our song':'Play our song');$('.pmeta small',p).textContent=on?'Now playing':'Tap to play';if(a){on?a.play():a.pause()}})})();
 
 /* ---------- RSVP ---------- */
 let plus=0;const setPlus=n=>{plus=Math.max(0,Math.min(5,n));$('#plusN').textContent=plus};
