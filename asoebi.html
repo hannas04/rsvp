@@ -162,13 +162,14 @@ textarea.in{resize:vertical;min-height:70px}
 </aside>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* ===================== CONFIG — edit here ===================== */
 const CONFIG={
   invitationUrl:"index.html",
-  paystackKey:"pk_test_f872b10c876d2243a9e51b6150674c93c828eb23",   // your Paystack PUBLIC key
+  paystackKey:"pk_test_f872b10c876d2243a9e51b6150674c93c828eb23",   // your Paystack PUBLIC key (pk_...), never the secret key
   minYards:1, maxYards:30,
-  delivery:{lagos:3500, other:6500},                // naira
+  delivery:{lagos:3500, other:6500},                // naira (must match shop_settings in Supabase)
   products:[
     {id:"m1",c:"men",  n:"Swiss Voile — Pure White",   d:"Crisp, breathable voile for the agbada and sokoto.",         p:12000,bg:"linear-gradient(160deg,#ffffff,#e9dfe4)",tag:"Bestseller"},
     {id:"m2",c:"men",  n:"Brocade — Blush Pink",        d:"Rich jacquard brocade with a soft pink sheen.",              p:18000,bg:"linear-gradient(160deg,#f7b3cd,#d6407a)",tag:"New"},
@@ -180,13 +181,25 @@ const CONFIG={
   ]
 };
 const STATES=["Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno","Cross River","Delta","Ebonyi","Edo","Ekiti","Enugu","FCT Abuja","Gombe","Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi","Kwara","Lagos","Nasarawa","Niger","Ogun","Ondo","Osun","Oyo","Plateau","Rivers","Sokoto","Taraba","Yobe","Zamfara"];
+
+/* ===== SUPABASE — paste your anon/public key below (Project Settings → API) ===== */
+const SB_URL="https://wwxqphxhdrhcusvjffka.supabase.co";
+const SB_KEY="PASTE-YOUR-SUPABASE-ANON-KEY-HERE";
 /* ============================================================== */
+
+let sb=null;
+try{
+  if(window.supabase&&!/PASTE|YOUR-/.test(SB_KEY)&&!/YOUR-/.test(SB_URL)){sb=window.supabase.createClient(SB_URL,SB_KEY)}
+}catch(e){sb=null}
+
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const N=n=>'₦'+Math.round(n).toLocaleString('en-NG');
-const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),3200)};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),4200)};
 const byId=id=>CONFIG.products.find(p=>p.id===id);
 let cart={},qty={},cat='all';
-try{cart=JSON.parse(localStorage.getItem('asoCart')||'{}')}catch(e){}
+try{cart=JSON.parse(localStorage.getItem('asoCart')||'{}')}catch(e){cart={}}
+/* drop any saved item that no longer exists, so the page never crashes */
+Object.keys(cart).forEach(id=>{if(!byId(id)||!(cart[id]>0))delete cart[id]});
 const save=()=>{try{localStorage.setItem('asoCart',JSON.stringify(cart))}catch(e){}};
 const clamp=n=>Math.max(CONFIG.minYards,Math.min(CONFIG.maxYards,n));
 $('#back').href=CONFIG.invitationUrl;
@@ -206,7 +219,7 @@ function renderGrid(){
 }
 $('#grid').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const id=b.dataset.m||b.dataset.a||b.dataset.add;if(!id)return;
-  const p=byId(id);let q=qty[id]||CONFIG.minYards;
+  const p=byId(id);if(!p)return;let q=qty[id]||CONFIG.minYards;
   if(b.dataset.m||b.dataset.a){q=clamp(q+(b.dataset.a?1:-1));qty[id]=q;$('#q-'+id).textContent=q;$('#t-'+id).textContent=N(p.p*q)}
   else{const cur=(cart[id]||0)+q;cart[id]=Math.min(CONFIG.maxYards,cur);save();renderCart();toast(`${q} yard${q>1?'s':''} of ${p.n} added`)}
 });
@@ -242,30 +255,104 @@ $('#toShop').onclick=()=>view('vShop');$('#again').onclick=()=>view('vShop');
 $('#state').onchange=renderOrder;
 const loadPaystack=()=>new Promise(r=>{if(window.PaystackPop)return r(true);const s=document.createElement('script');s.src='https://js.paystack.co/v1/inline.js';s.onload=()=>r(true);s.onerror=()=>r(false);document.head.appendChild(s)});
 
+let paying=false;
+function resetPayBtn(){paying=false;const b=$('#pay');b.disabled=false;b.textContent='Pay with Paystack'}
+
+/* After Paystack says "paid": ask our server to confirm with Paystack (with retries) */
+async function confirmPayment(ref,total,first){
+  cart={};save();renderCart();
+  $('#coWrap').style.display='none';$('#okBox').style.display='';
+  $('#okMsg').textContent='Confirming your payment…';
+  $('#okRef').textContent='Ref: '+ref;
+  scrollTo({top:0});
+
+  let paid=false,mismatch=false;
+  for(let i=0;i<6&&!paid&&!mismatch;i++){
+    try{
+      const {data}=await sb.functions.invoke('verify-payment',{body:{reference:ref}});
+      if(data&&data.status==='success')paid=true;
+      else if(data&&data.status==='amount_mismatch')mismatch=true;
+    }catch(e){}
+    if(!paid&&!mismatch){
+      try{
+        const {data}=await sb.rpc('order_status',{p_ref:ref});
+        if(data==='paid')paid=true;
+      }catch(e){}
+    }
+    if(!paid&&!mismatch&&i<5)await new Promise(r=>setTimeout(r,2000*(i+1)));
+  }
+  $('#okMsg').textContent=paid
+    ?`${first}, your payment of ${N(total)} was received. Thank you!`
+    :mismatch
+      ?`${first}, we could not match your payment amount. Please contact us with this reference.`
+      :`${first}, your payment went through and is being confirmed. Please keep this reference. We will contact you shortly.`;
+  resetPayBtn();
+}
+
 $('#form').addEventListener('submit',async e=>{
   e.preventDefault();
+  if(paying)return;
   const v=id=>$('#'+id).value.trim(),bad=(id,ok)=>$('#'+id).closest('.f').classList.toggle('bad',!ok);
   const chk={name:v('name').length>2,phone:/^\+?[\d\s-]{10,}$/.test(v('phone')),email:/^\S+@\S+\.\S+$/.test(v('email')),addr:v('addr').length>6,city:v('city').length>1,state:!!v('state')};
   Object.entries(chk).forEach(([k,ok])=>bad(k,ok));
   if(!Object.values(chk).every(Boolean))return toast('Please complete the highlighted fields');
   if(!Object.keys(cart).length)return toast('Your cart is empty');
-  const total=sub()+fee(),ref='ASO-'+Date.now().toString(36).toUpperCase(),btn=$('#pay');
-  btn.disabled=true;btn.textContent='Opening Paystack…';
-  const ok=await loadPaystack();
-  btn.disabled=false;btn.textContent='Pay with Paystack';
-  if(!ok||!window.PaystackPop)return toast('Paystack could not load here. Host this page on your own site to take real payments.');
-  const items=Object.entries(cart).map(([id,y])=>({item:byId(id).n,category:byId(id).c,yards:y}));
-  PaystackPop.setup({
-    key:CONFIG.paystackKey,email:v('email'),amount:Math.round(total*100),currency:'NGN',ref,
-    metadata:{custom_fields:[
-      {display_name:'Name',variable_name:'name',value:v('name')},{display_name:'Phone',variable_name:'phone',value:v('phone')},
-      {display_name:'Address',variable_name:'address',value:`${v('addr')}, ${v('city')}, ${v('state')}`},{display_name:'Landmark',variable_name:'landmark',value:v('note')},
-      {display_name:'Items',variable_name:'items',value:items.map(i=>`${i.item} x ${i.yards}yd`).join('; ')}]},
-    callback:r=>{ /* TODO: also POST order + delivery details to your server and verify r.reference with Paystack */
-      cart={};save();renderCart();$('#coWrap').style.display='none';$('#okBox').style.display='';
-      $('#okMsg').textContent=`${v('name').split(' ')[0]}, your payment of ${N(total)} was received.`;$('#okRef').textContent='Ref: '+(r.reference||ref);scrollTo({top:0})},
-    onClose:()=>toast('Payment window closed')
-  }).openIframe();
+
+  /* setup checks, so a wrong key is caught before the Paystack window opens */
+  if(!/^pk_(test|live)_[A-Za-z0-9]{20,}$/.test(CONFIG.paystackKey||''))
+    return toast('Paystack public key is missing or wrong. It must start with pk_test_ or pk_live_.');
+  if(!sb)
+    return toast('Shop is not connected yet. Add your Supabase anon key in the page settings.');
+
+  paying=true;
+  const btn=$('#pay');btn.disabled=true;btn.textContent='Please wait…';
+
+  try{
+    if(!(await loadPaystack())||!window.PaystackPop){
+      toast('Could not load Paystack. Check your internet and try again.');
+      return resetPayBtn();
+    }
+
+    /* 1. The server creates the order and decides the price */
+    const items=Object.entries(cart).map(([id,y])=>({id,yards:y}));
+    const {data,error}=await sb.rpc('create_order',{
+      p_name:v('name'),p_phone:v('phone'),p_email:v('email'),
+      p_address:v('addr'),p_city:v('city'),p_state:v('state'),
+      p_landmark:v('note'),p_items:items
+    });
+    if(error||!data||!data.length){
+      toast((error&&error.message)||'Could not create your order. Please try again.');
+      return resetPayBtn();
+    }
+    const o=data[0];
+
+    /* 2. Safety check: the price on screen must match the server's price */
+    if(Math.round(o.o_total)!==Math.round(sub()+fee())){
+      toast('Prices were updated. Please review your order and try again.');
+      renderOrder();return resetPayBtn();
+    }
+
+    /* 3. Open Paystack with the server's reference and amount */
+    let finished=false;
+    const first=v('name').split(' ')[0];
+    const handler=PaystackPop.setup({
+      key:CONFIG.paystackKey,
+      email:v('email'),
+      amount:Math.round(o.o_total*100),
+      currency:'NGN',
+      ref:o.o_ref,
+      metadata:{custom_fields:[
+        {display_name:'Name',variable_name:'name',value:v('name')},
+        {display_name:'Phone',variable_name:'phone',value:v('phone')}
+      ]},
+      callback:function(r){finished=true;confirmPayment(o.o_ref,o.o_total,first)},
+      onClose:function(){if(!finished){resetPayBtn();toast('Payment window closed. Your cart is saved.')}}
+    });
+    handler.openIframe();
+  }catch(err){
+    toast('Something went wrong. Please try again.');
+    resetPayBtn();
+  }
 });
 renderGrid();renderCart();
 </script>
