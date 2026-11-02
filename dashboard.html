@@ -74,6 +74,13 @@ dialog::backdrop{background:rgba(30,8,20,.55)}
 .qrbox svg{width:210px;height:210px}
 textarea.in{min-height:110px;resize:vertical;font-family:inherit}
 .btn-wa{background:#25D366;color:#fff}
+.vwrap{position:relative;width:100%;max-width:420px;aspect-ratio:1;margin:auto;background:#1b1016;border-radius:14px;overflow:hidden}
+.vwrap video{width:100%;height:100%;object-fit:cover}
+.frame{position:absolute;inset:18%;border:3px solid rgba(255,255,255,.85);border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none}
+.gres{border-radius:14px;padding:28px 18px;text-align:center;color:#fff;min-height:170px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.gres b{font:700 1.5rem var(--caps)}.gres span{font-size:.85rem;opacity:.95}
+.gres.idle{background:var(--hi);color:var(--soft)}
+.gres.valid{background:var(--ok)}.gres.used{background:var(--warn)}.gres.invalid,.gres.declined{background:var(--bad)}
 @media(max-width:820px){
   .side{position:fixed;inset:auto 0 0 0;width:100%;height:auto;flex-direction:row;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border:0;border-top:1px solid var(--hair);z-index:60;gap:2px}
   .side .logo,.side .out{display:none}.nav{flex-direction:column;gap:2px;font-size:.54rem;justify-content:center;text-align:center;padding:.6em .2em;position:relative}
@@ -99,6 +106,7 @@ textarea.in{min-height:110px;resize:vertical;font-family:inherit}
     <button class="nav on" data-v="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 10 10-10 10L2 12z"/><circle cx="12" cy="12" r="3"/></svg>Overview</button>
     <button class="nav" data-v="rsvps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg>RSVPs <b id="nR">0</b></button>
     <button class="nav" data-v="orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>Orders <b id="nO">0</b></button>
+    <button class="nav" data-v="gate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M4 12h16"/></svg>Gate <b id="nG">0</b></button>
     <button class="nav out" id="out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5m5 5H3"/><path d="M13 3h7a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-7"/></svg>Sign out</button>
   </aside>
   <main class="main">
@@ -122,6 +130,35 @@ textarea.in{min-height:110px;resize:vertical;font-family:inherit}
       <div class="tools"><input class="in" id="qO" placeholder="Search name, phone, reference…"><select class="in" id="fO"><option value="">All statuses</option><option>processing</option><option>tailoring</option><option>shipped</option><option>delivered</option><option>cancelled</option></select><select class="in" id="pO"><option value="">All payments</option><option>paid</option><option>pending</option><option>failed</option></select></div>
       <div class="tw"><table><thead><tr><th>Reference</th><th>Customer</th><th>Yards</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody id="tO"></tbody></table></div>
     </section>
+
+    <section id="v-gate" hidden>
+  <div class="bar"><h2>Gate Scanner</h2><span class="live"><i></i> Live</span></div>
+  <div class="cards" id="gStats"></div>
+  <div class="two">
+    <div class="box">
+      <h3>Scan pass</h3>
+      <div class="vwrap"><video id="gVideo" playsinline muted></video><div class="frame"></div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-acc" id="gStart">Start camera</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <input class="in" id="gManual" placeholder="Or type the pass code" autocapitalize="characters" autocomplete="off">
+        <button class="btn btn-line" id="gCheck">Check</button>
+      </div>
+    </div>
+    <div class="box">
+      <h3>Result</h3>
+      <div class="gres idle" id="gRes"><b>Ready</b><span>Scan a guest's QR code</span></div>
+      <button class="btn btn-line btn-sm" id="gUndo" hidden style="margin-top:12px">Undo last check-in</button>
+    </div>
+  </div>
+</section>
+
+    <section id="v-gate" hidden>
+      <div class="bar"><h2>Gate Access</h2></div>
+      <div class="tools"><input class="in" id="qG" placeholder="Search name or phone…"></div>
+      <div class="tw"><table><thead><tr><th>Guest</th><th>Phone</th><th>Access</th><th>Date</th><th></th></tr></thead><tbody id="tG"></tbody></table></div>
+    </section>
   </main>
 </div>
 
@@ -143,6 +180,7 @@ textarea.in{min-height:110px;resize:vertical;font-family:inherit}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="pass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -197,7 +235,7 @@ function render(){
   $('#chart').innerHTML=cnt.map((c,i)=>`<div title="${esc(days[i])}"><span>${c||''}</span><i style="height:${c/mx*100}%"></i><span>${new Date(days[i]).getDate()}</span></div>`).join('');
   const feed=[...R.map(r=>({t:r.created_at,x:`<b>${esc(r.name)}</b> ${r.status==='attending'?'will attend':'declined'}${r.plus_ones?` (+${r.plus_ones})`:''}`})),...O.map(o=>({t:o.created_at,x:`<b>${esc(o.name)}</b> ordered ${yd(o)} yards · ${N(o.total)}`}))].sort((a,b)=>new Date(b.t)-new Date(a.t)).slice(0,7);
   $('#act').innerHTML=feed.length?feed.map(f=>`<li><em></em><div>${f.x}<small>${ago(f.t)}</small></div></li>`).join(''):'<li class="muted">Nothing yet.</li>';
-  tableR();tableO();
+  tableR();tableO();gateStats();
 }
 const pillP=s=>`<span class="pill ${s==='paid'?'ok':s==='failed'?'bad':'warn'}">${esc(s)}</span>`;
 const pillO=s=>`<span class="pill ${s==='delivered'?'ok':s==='cancelled'?'bad':s==='processing'?'warn':''}">${esc(s)}</span>`;
@@ -211,7 +249,14 @@ function tableO(){const l=fO();$('#tO').innerHTML=l.length?l.map(o=>`<tr><td cla
 ['#qR','#fR'].forEach(s=>$(s).addEventListener('input',tableR));['#qO','#fO','#pO'].forEach(s=>$(s).addEventListener('input',tableO));
 
 /* ---------- actions ---------- */
-$$('.nav[data-v]').forEach(b=>b.onclick=()=>{$$('.nav').forEach(x=>x.classList.toggle('on',x===b));['overview','rsvps','orders'].forEach(v=>$('#v-'+v).hidden=v!==b.dataset.v)});
+// $$('.nav[data-v]').forEach(b=>b.onclick=()=>{$$('.nav').forEach(x=>x.classList.toggle('on',x===b));['overview','rsvps','orders'].forEach(v=>$('#v-'+v).hidden=v!==b.dataset.v)});
+
+$$('.nav[data-v]').forEach(b=>b.onclick=()=>{
+  $$('.nav').forEach(x=>x.classList.toggle('on',x===b));
+  ['overview','rsvps','orders','gate'].forEach(v=>$('#v-'+v).hidden=v!==b.dataset.v);
+  if(b.dataset.v!=='gate')stopCam();
+});
+
 $('#tR').addEventListener('click',async e=>{const id=e.target.dataset.delr;if(!id||!confirm('Delete this RSVP?'))return;
   const {error}=await sb.from('rsvps').delete().eq('id',id);error?toast('Delete failed'):(R=R.filter(r=>r.id!==id),render(),toast('RSVP deleted'))});
 $('#tO').addEventListener('click',e=>{const id=e.target.dataset.view;if(id)openOrder(O.find(o=>o.id===id))});
@@ -296,6 +341,96 @@ $('#passShare').onclick=async()=>{
   else toast('Sharing not supported here. Use Download pass.');
 };
 $('#waX').onclick=()=>$('#waDlg').close();
+
+/* ---------- GATE SCANNER ---------- */
+let stream=null,scanning=false,busy=false,lastCode='',lastAt=0,lastChecked=null;
+const gv=$('#gVideo'),gcv=document.createElement('canvas'),gcx=gcv.getContext('2d',{willReadFrequently:true});
+
+function gateStats(){
+  const att=R.filter(r=>r.status==='attending');
+  const inn=att.filter(r=>r.checked_in);
+  const people=inn.reduce((s,r)=>s+1+r.plus_ones,0);
+  const expected=att.reduce((s,r)=>s+1+r.plus_ones,0);
+  $('#nG').textContent=inn.length;
+  $('#gStats').innerHTML=[
+    ['People inside',people,`of ${expected} expected`,1],
+    ['Passes scanned',inn.length,`of ${att.length} attending`],
+    ['Still to arrive',att.length-inn.length,'passes not yet scanned']
+  ].map(([t,v,s,h])=>`<div class="c${h?' hl':''}"><small>${t}</small><b>${esc(v)}</b><span>${esc(s)}</span></div>`).join('');
+}
+
+function beep(ok){
+  try{
+    const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();
+    o.frequency.value=ok?880:220;o.connect(g);g.connect(a.destination);g.gain.value=.15;o.start();o.stop(a.currentTime+(ok?.12:.35));
+  }catch(e){}
+  if(navigator.vibrate)navigator.vibrate(ok?80:[120,60,120]);
+}
+function showRes(type,title,sub){
+  $('#gRes').className='gres '+type;
+  $('#gRes').innerHTML=`<b>${esc(title)}</b><span>${esc(sub)}</span>`;
+  beep(type==='valid');
+}
+
+async function verify(raw){
+  if(busy)return;busy=true;
+  const code=String(raw||'').trim().toUpperCase();
+  try{
+    if(!/^[A-Z0-9]{6,20}$/.test(code)){showRes('invalid','Not a wedding pass','This QR code is not valid.');return}
+    const {data,error}=await sb.rpc('check_in',{code});
+    if(error){showRes('invalid','Error',error.message);return}
+    const r=data&&data[0];
+    if(!r||r.res==='invalid'){showRes('invalid','Invalid pass','No guest found for this code.');return}
+    const who=r.guest_name,n=r.guests;
+    if(r.res==='valid'){
+      lastChecked=code;$('#gUndo').hidden=false;
+      showRes('valid',who,`✓ Welcome! Admit ${n} ${n>1?'guests':'guest'}`);
+    }else if(r.res==='used'){
+      showRes('used','Already scanned',`${who} was checked in at ${new Date(r.scanned_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`);
+    }else if(r.res==='declined'){
+      showRes('declined','Not on the guest list',`${who} declined this invitation.`);
+    }
+    load(true);
+  }finally{busy=false}
+}
+
+async function startCam(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});
+    gv.srcObject=stream;await gv.play();scanning=true;
+    $('#gStart').textContent='Stop camera';requestAnimationFrame(scanLoop);
+  }catch(e){toast('Camera blocked. Allow camera access or type the code.')}
+}
+function stopCam(){
+  scanning=false;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  gv.srcObject=null;$('#gStart').textContent='Start camera';
+}
+function scanLoop(){
+  if(!scanning)return;
+  if(gv.readyState>=2&&gv.videoWidth&&!busy){
+    const w=Math.min(640,gv.videoWidth),h=Math.round(w*gv.videoHeight/gv.videoWidth);
+    gcv.width=w;gcv.height=h;gcx.drawImage(gv,0,0,w,h);
+    const img=gcx.getImageData(0,0,w,h),hit=jsQR(img.data,w,h,{inversionAttempts:'dontInvert'});
+    if(hit&&hit.data){
+      const c=hit.data.trim().toUpperCase(),now=Date.now();
+      if(!(c===lastCode&&now-lastAt<4000)){lastCode=c;lastAt=now;verify(c)}
+    }
+  }
+  requestAnimationFrame(scanLoop);
+}
+
+$('#gStart').onclick=()=>scanning?stopCam():startCam();
+$('#gCheck').onclick=()=>{const v=$('#gManual').value;if(v){verify(v);$('#gManual').value=''}};
+$('#gManual').addEventListener('keydown',e=>{if(e.key==='Enter')$('#gCheck').click()});
+$('#gUndo').onclick=async()=>{
+  if(!lastChecked)return;
+  const {error}=await sb.from('rsvps').update({checked_in:false,checked_in_at:null}).eq('ticket_code',lastChecked);
+  if(error)return toast('Undo failed');
+  toast('Check-in undone');lastChecked=null;lastCode='';$('#gUndo').hidden=true;
+  $('#gRes').className='gres idle';$('#gRes').innerHTML='<b>Ready</b><span>Scan a guest\'s QR code</span>';
+  load(true);
+};
 
 $('#dX').onclick=()=>$('#dlg').close();
 const csv=(rows,cols,name)=>{const q=v=>`"${String(v??'').replace(/"/g,'""').replace(/^([=+\-@])/,"'$1")}"`;
