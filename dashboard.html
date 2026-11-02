@@ -70,6 +70,10 @@ dialog::backdrop{background:rgba(30,8,20,.55)}
 .items{border:1px solid var(--hair);border-radius:10px}.items div{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--hair)}.items div:last-child{border:0;font-weight:600}
 .df{display:flex;gap:10px;flex-wrap:wrap;padding:16px 24px;border-top:1px solid var(--hair)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,30px);background:var(--ink);color:var(--bg);padding:.9em 1.4em;border-radius:999px;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;opacity:0;transition:all .4s;z-index:300;pointer-events:none}.toast.on{opacity:1;transform:translate(-50%,0)}
+.qrbox{display:grid;place-items:center;padding:14px;background:#fff;border-radius:12px;border:1px solid var(--hair)}
+.qrbox svg{width:210px;height:210px}
+textarea.in{min-height:110px;resize:vertical;font-family:inherit}
+.btn-wa{background:#25D366;color:#fff}
 @media(max-width:820px){
   .side{position:fixed;inset:auto 0 0 0;width:100%;height:auto;flex-direction:row;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border:0;border-top:1px solid var(--hair);z-index:60;gap:2px}
   .side .logo,.side .out{display:none}.nav{flex-direction:column;gap:2px;font-size:.54rem;justify-content:center;text-align:center;padding:.6em .2em;position:relative}
@@ -122,13 +126,29 @@ dialog::backdrop{background:rgba(30,8,20,.55)}
 </div>
 
 <dialog id="dlg"><div class="dh"><span id="dT">Order</span><button id="dX" aria-label="Close" style="font-size:1.5rem">×</button></div><div class="db" id="dB"></div><div class="df" id="dF"></div></dialog>
+
+<dialog id="waDlg">
+  <div class="dh"><span id="waT">Guest pass</span><button id="waX" aria-label="Close" style="font-size:1.5rem">×</button></div>
+  <div class="db">
+    <img id="passImg" alt="Guest pass" style="width:100%;max-width:300px;margin:auto;border-radius:12px;border:1px solid var(--hair)">
+    <label class="muted">WhatsApp message<textarea class="in" id="waMsg"></textarea></label>
+  </div>
+  <div class="df">
+    <button class="btn btn-acc" id="passDl">Download pass</button>
+    <button class="btn btn-line" id="passShare">Share image</button>
+    <a class="btn btn-wa" id="waOpen" target="_blank" rel="noopener">Open WhatsApp</a>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="pass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* ===== CONFIG — paste from Supabase → Project Settings → API ===== */
-const SUPABASE_URL="https://YOUR-PROJECT.supabase.co";
-const SUPABASE_ANON_KEY="YOUR-ANON-PUBLIC-KEY";   // the ANON key only. Never put the service_role key in a web page.
+const SUPABASE_URL="https://wwxqphxhdrhcusvjffka.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3eHFwaHhoZHJoY3VzdmpmZmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDMxMTYsImV4cCI6MjEwOTE3OTExNn0.Ltw3iL2EeX3E-utG66gRE2r-MtBeNQ1IJEhpy4mY730";   // the ANON key only. Never put the service_role key in a web page.
 /* ================================================================= */
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -183,7 +203,10 @@ const pillP=s=>`<span class="pill ${s==='paid'?'ok':s==='failed'?'bad':'warn'}">
 const pillO=s=>`<span class="pill ${s==='delivered'?'ok':s==='cancelled'?'bad':s==='processing'?'warn':''}">${esc(s)}</span>`;
 function fR(){const q=$('#qR').value.toLowerCase(),f=$('#fR').value;return R.filter(r=>(!f||r.status===f)&&(r.name+r.phone).toLowerCase().includes(q))}
 function fO(){const q=$('#qO').value.toLowerCase(),s=$('#fO').value,p=$('#pO').value;return O.filter(o=>(!s||o.order_status===s)&&(!p||o.payment_status===p)&&(o.name+o.phone+(o.reference||'')).toLowerCase().includes(q))}
-function tableR(){const l=fR();$('#tR').innerHTML=l.length?l.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.phone)}</td><td><span class="pill ${r.status==='attending'?'ok':'bad'}">${esc(r.status)}</span></td><td>${r.plus_ones}</td><td class="muted">${D(r.created_at)}</td><td><button class="btn btn-line btn-sm" data-delr="${r.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No RSVPs found.</td></tr>'}
+// function tableR(){const l=fR();$('#tR').innerHTML=l.length?l.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.phone)}</td><td><span class="pill ${r.status==='attending'?'ok':'bad'}">${esc(r.status)}</span></td><td>${r.plus_ones}</td><td class="muted">${D(r.created_at)}</td><td><button class="btn btn-line btn-sm" data-delr="${r.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No RSVPs found.</td></tr>'}
+
+function tableR(){const l=fR();$('#tR').innerHTML=l.length?l.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.phone)}</td><td><span class="pill ${r.status==='attending'?'ok':'bad'}">${esc(r.status)}</span></td><td>${r.plus_ones}</td><td class="muted">${D(r.created_at)}</td><td style="white-space:nowrap">${r.status==='attending'?`<button class="btn btn-acc btn-sm" data-wa="${r.id}">Pass</button> `:''}<button class="btn btn-line btn-sm" data-delr="${r.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No RSVPs found.</td></tr>'}
+
 function tableO(){const l=fO();$('#tO').innerHTML=l.length?l.map(o=>`<tr><td class="muted">${esc(o.reference||'—')}</td><td><b>${esc(o.name)}</b><div class="muted">${esc(o.state)}</div></td><td>${yd(o)}</td><td>${N(o.total)}</td><td>${pillP(o.payment_status)}</td><td>${pillO(o.order_status)}</td><td class="muted">${D(o.created_at)}</td><td><button class="btn btn-acc btn-sm" data-view="${o.id}">View</button></td></tr>`).join(''):'<tr><td colspan="8" class="empty">No orders found.</td></tr>'}
 ['#qR','#fR'].forEach(s=>$(s).addEventListener('input',tableR));['#qO','#fO','#pO'].forEach(s=>$(s).addEventListener('input',tableO));
 
@@ -204,6 +227,76 @@ function openOrder(o){
   $('#dCopy').onclick=()=>{navigator.clipboard?.writeText(`${o.name}\n${o.phone}\n${o.address}\n${o.city}, ${o.state}${o.landmark?'\nLandmark: '+o.landmark:''}`);toast('Label copied')};
   $('#dlg').showModal();
 }
+
+// /* ---------- WhatsApp + QR ---------- */
+// // Nigerian numbers: 0803... -> 234803..., +234... -> 234...
+// function waNumber(p){
+//   let n=String(p||'').replace(/[^\d]/g,'');
+//   if(n.startsWith('00'))n=n.slice(2);
+//   if(n.startsWith('0'))n='234'+n.slice(1);
+//   return n;
+// }
+// function waLink(phone,msg){return `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(msg)}`}
+// function waDefault(r){
+//   const first=r.name.split(' ')[0];
+//   return r.status==='attending'
+//     ?`Hello ${first}, thank you for confirming your attendance at Emma & Lucas's wedding on 17th July 2027 in Lagos. We can't wait to celebrate with you${r.plus_ones?` and your ${r.plus_ones} guest${r.plus_ones>1?'s':''}`:''}. 💕`
+//     :`Hello ${first}, thank you for letting us know. You will be missed at Emma & Lucas's wedding. 💕`;
+// }
+// function drawQR(text){
+//   const q=qrcode(0,'M');q.addData(text);q.make();
+//   $('#waQR').innerHTML=q.createSvgTag({cellSize:6,margin:0,scalable:true});
+// }
+// let waRow=null;
+// function refreshWA(){
+//   const link=waLink(waRow.phone,$('#waMsg').value);
+//   $('#waOpen').href=link;drawQR(link);
+// }
+// $('#tR').addEventListener('click',e=>{
+//   const id=e.target.dataset.wa;if(!id)return;
+//   waRow=R.find(r=>r.id===id);
+//   $('#waT').textContent='Message '+waRow.name;
+//   $('#waMsg').value=waDefault(waRow);
+//   refreshWA();$('#waDlg').showModal();
+// });
+// $('#waMsg').addEventListener('input',refreshWA);
+// $('#waX').onclick=()=>$('#waDlg').close();
+
+/* ---------- Guest pass + WhatsApp ---------- */
+const TICKET_PAGE="https://YOUR-SITE.com/ticket.html";   // where you host ticket.html
+function waNumber(p){
+  let n=String(p||'').replace(/[^\d]/g,'');
+  if(n.startsWith('00'))n=n.slice(2);
+  if(n.startsWith('0'))n='234'+n.slice(1);
+  return n;
+}
+const passFile=r=>r.name.replace(/[^a-z0-9]+/gi,'-')+'-wedding-pass.png';
+const toBlob=c=>new Promise(res=>c.toBlob(res,'image/png'));
+let waRow=null,passCanvas=null;
+
+function refreshWA(){
+  $('#waOpen').href=`https://wa.me/${waNumber(waRow.phone)}?text=${encodeURIComponent($('#waMsg').value)}`;
+}
+async function openPass(r){
+  waRow=r;passCanvas=await makePass(r);
+  $('#passImg').src=passCanvas.toDataURL('image/png');
+  $('#waT').textContent=r.name;
+  const first=r.name.split(' ')[0];
+  $('#waMsg').value=`Hello ${first}, thank you for confirming your attendance at Emma & Lucas's wedding on 17th July 2027. 💕\n\nHere is your personal gate pass. Please download it and present the QR code at the entrance:\n${TICKET_PAGE}?c=${r.ticket_code}`;
+  refreshWA();
+  $('#passShare').hidden=!navigator.canShare;
+  $('#waDlg').showModal();
+}
+$('#tR').addEventListener('click',e=>{const id=e.target.dataset.wa;if(id)openPass(R.find(r=>r.id===id))});
+$('#waMsg').addEventListener('input',refreshWA);
+$('#passDl').onclick=()=>{const a=document.createElement('a');a.href=passCanvas.toDataURL('image/png');a.download=passFile(waRow);a.click()};
+$('#passShare').onclick=async()=>{
+  const file=new File([await toBlob(passCanvas)],passFile(waRow),{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],text:`Your wedding pass, ${waRow.name.split(' ')[0]} 💕`})}catch(e){}}
+  else toast('Sharing not supported here. Use Download pass.');
+};
+$('#waX').onclick=()=>$('#waDlg').close();
+
 $('#dX').onclick=()=>$('#dlg').close();
 const csv=(rows,cols,name)=>{const q=v=>`"${String(v??'').replace(/"/g,'""').replace(/^([=+\-@])/,"'$1")}"`;
   const t=[cols.map(c=>q(c[0])).join(','),...rows.map(r=>cols.map(c=>q(c[1](r))).join(','))].join('\n');

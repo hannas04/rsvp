@@ -645,7 +645,11 @@ footer p{font-family:var(--sans);font-size:.6rem;letter-spacing:.34em;text-trans
 <div class="petals" id="petals" aria-hidden="true"></div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
+const SB_URL="https://wwxqphxhdrhcusvjffka.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3eHFwaHhoZHJoY3VzdmpmZmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDMxMTYsImV4cCI6MjEwOTE3OTExNn0.Ltw3iL2EeX3E-utG66gRE2r-MtBeNQ1IJEhpy4mY730";
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 (function(){
 "use strict";
 const CONFIG={weddingDate:"2027-07-17T11:00:00+01:00",rsvpBy:"By January 1st 2027",musicUrl:""};
@@ -984,18 +988,27 @@ $('#hash').addEventListener('click',()=>{navigator.clipboard?.writeText($('#hash
 /* ---------- RSVP ---------- */
 let plus=0;const setPlus=n=>{plus=Math.max(0,Math.min(5,n));$('#plusN').textContent=plus};
 $('#minus').onclick=()=>setPlus(plus-1);$('#plus').onclick=()=>setPlus(plus+1);
-$('#rsvpForm').addEventListener('submit',e=>{
+
+$('#rsvpForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const name=$('#name').value.trim(),phone=$('#phone').value.trim(),st=$('#status').value;
   const mark=(el,ok)=>el.closest('.f').classList.toggle('bad',!ok);
-  const a=name.length>2,b=/^[+\d][\d\s-]{7,}$/.test(phone),c=!!st;mark($('#name'),a);mark($('#phone'),b);mark($('#status'),c);
+  const a=name.length>2,b=/^[+\d][\d\s-]{7,}$/.test(phone),c=!!st;
+  mark($('#name'),a);mark($('#phone'),b);mark($('#status'),c);
   if(!(a&&b&&c))return;
+
   const btn=$('#send');btn.classList.add('loading');
-  /* TODO: replace with fetch('/api/rsvp',{method:'POST',body:JSON.stringify({name,phone,st,plus})}) */
-  setTimeout(()=>{btn.classList.remove('loading');
-    $('#thanksMsg').textContent=st==='attending'?`${name.split(' ')[0]}, we can't wait to celebrate with you${plus?` and your ${plus} guest${plus>1?'s':''}`:''}.`:`${name.split(' ')[0]}, you will be missed. Thank you for letting us know.`;
-    $('#rsvpCard').classList.add('sent');dirty=true;req()},1200);
+  const {error}=await sb.from('rsvps').insert({name,phone,status:st,plus_ones:plus});
+  btn.classList.remove('loading');
+
+  if(error){toast('Could not send. Please try again.');return}
+
+  $('#thanksMsg').textContent=st==='attending'
+    ?`${name.split(' ')[0]}, we can't wait to celebrate with you${plus?` and your ${plus} guest${plus>1?'s':''}`:''}.`
+    :`${name.split(' ')[0]}, you will be missed. Thank you for letting us know.`;
+  $('#rsvpCard').classList.add('sent');dirty=true;req();
 });
+
 })();
 </script>
 </body>
