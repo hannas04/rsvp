@@ -161,12 +161,15 @@ textarea.in{resize:vertical;min-height:70px}
   <div class="df"><div class="sum big"><span>Subtotal</span><span id="dsub">₦0</span></div><button class="btn btn-acc btn-block" id="go">Checkout</button></div>
 </aside>
 <div class="toast" id="toast"></div>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
+const SB_URL="https://wwxqphxhdrhcusvjffka.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3eHFwaHhoZHJoY3VzdmpmZmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDMxMTYsImV4cCI6MjEwOTE3OTExNn0.Ltw3iL2EeX3E-utG66gRE2r-MtBeNQ1IJEhpy4mY730";
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 /* ===================== CONFIG — edit here ===================== */
 const CONFIG={
   invitationUrl:"index.html",
-  paystackKey:"pk_test_xxxxxxxxxxxxxxxxxxxxxxxx",   // your Paystack PUBLIC key
+  paystackKey:"sk_test_2322632900b6e0ea66c7d54f7c9b3a5a0dae734f",   // your Paystack PUBLIC key
   minYards:1, maxYards:30,
   delivery:{lagos:3500, other:6500},                // naira
   products:[
@@ -242,31 +245,101 @@ $('#toShop').onclick=()=>view('vShop');$('#again').onclick=()=>view('vShop');
 $('#state').onchange=renderOrder;
 const loadPaystack=()=>new Promise(r=>{if(window.PaystackPop)return r(true);const s=document.createElement('script');s.src='https://js.paystack.co/v1/inline.js';s.onload=()=>r(true);s.onerror=()=>r(false);document.head.appendChild(s)});
 
+let paying=false;
+
+function resetPayBtn(){
+  paying=false;
+  const b=$('#pay');b.disabled=false;b.textContent='Pay with Paystack';
+}
+
+async function confirmPayment(ref,total,first){
+  // Paystack only calls this after a successful payment, so the cart can be cleared now
+  cart={};save();renderCart();
+  $('#coWrap').style.display='none';$('#okBox').style.display='';
+  $('#okMsg').textContent='Confirming your payment…';
+  $('#okRef').textContent='Ref: '+ref;
+  scrollTo({top:0});
+
+  let paid=false;
+  for(let i=0;i<6&&!paid;i++){
+    try{
+      const {data}=await sb.functions.invoke('verify-payment',{body:{reference:ref}});
+      if(data&&data.status==='success')paid=true;
+    }catch(e){}
+    if(!paid){
+      try{
+        const {data}=await sb.rpc('order_status',{p_ref:ref});
+        if(data==='paid')paid=true;
+      }catch(e){}
+    }
+    if(!paid)await new Promise(r=>setTimeout(r,2000*(i+1)));
+  }
+  $('#okMsg').textContent=paid
+    ?`${first}, your payment of ${N(total)} was received. Thank you!`
+    :`${first}, your payment went through and is being confirmed. Please keep this reference. We will contact you shortly.`;
+  resetPayBtn();
+}
+
 $('#form').addEventListener('submit',async e=>{
   e.preventDefault();
+  if(paying)return;
   const v=id=>$('#'+id).value.trim(),bad=(id,ok)=>$('#'+id).closest('.f').classList.toggle('bad',!ok);
   const chk={name:v('name').length>2,phone:/^\+?[\d\s-]{10,}$/.test(v('phone')),email:/^\S+@\S+\.\S+$/.test(v('email')),addr:v('addr').length>6,city:v('city').length>1,state:!!v('state')};
   Object.entries(chk).forEach(([k,ok])=>bad(k,ok));
   if(!Object.values(chk).every(Boolean))return toast('Please complete the highlighted fields');
   if(!Object.keys(cart).length)return toast('Your cart is empty');
-  const total=sub()+fee(),ref='ASO-'+Date.now().toString(36).toUpperCase(),btn=$('#pay');
-  btn.disabled=true;btn.textContent='Opening Paystack…';
-  const ok=await loadPaystack();
-  btn.disabled=false;btn.textContent='Pay with Paystack';
-  if(!ok||!window.PaystackPop)return toast('Paystack could not load here. Host this page on your own site to take real payments.');
-  const items=Object.entries(cart).map(([id,y])=>({item:byId(id).n,category:byId(id).c,yards:y}));
-  PaystackPop.setup({
-    key:CONFIG.paystackKey,email:v('email'),amount:Math.round(total*100),currency:'NGN',ref,
-    metadata:{custom_fields:[
-      {display_name:'Name',variable_name:'name',value:v('name')},{display_name:'Phone',variable_name:'phone',value:v('phone')},
-      {display_name:'Address',variable_name:'address',value:`${v('addr')}, ${v('city')}, ${v('state')}`},{display_name:'Landmark',variable_name:'landmark',value:v('note')},
-      {display_name:'Items',variable_name:'items',value:items.map(i=>`${i.item} x ${i.yards}yd`).join('; ')}]},
-    callback:r=>{ /* TODO: also POST order + delivery details to your server and verify r.reference with Paystack */
-      cart={};save();renderCart();$('#coWrap').style.display='none';$('#okBox').style.display='';
-      $('#okMsg').textContent=`${v('name').split(' ')[0]}, your payment of ${N(total)} was received.`;$('#okRef').textContent='Ref: '+(r.reference||ref);scrollTo({top:0})},
-    onClose:()=>toast('Payment window closed')
-  }).openIframe();
+
+  paying=true;
+  const btn=$('#pay');btn.disabled=true;btn.textContent='Please wait…';
+
+  try{
+    if(!(await loadPaystack())||!window.PaystackPop){
+      toast('Could not load Paystack. Check your internet and try again.');
+      return resetPayBtn();
+    }
+
+    // 1. The server creates the order and decides the price
+    const items=Object.entries(cart).map(([id,yards])=>({id,yards}));
+    const {data,error}=await sb.rpc('create_order',{
+      p_name:v('name'),p_phone:v('phone'),p_email:v('email'),
+      p_address:v('addr'),p_city:v('city'),p_state:v('state'),
+      p_landmark:v('note'),p_items:items
+    });
+    if(error||!data||!data.length){
+      toast(error?.message||'Could not create your order. Please try again.');
+      return resetPayBtn();
+    }
+    const o=data[0];
+
+    // 2. Safety check: the price on screen must match the server's price
+    if(Math.round(o.o_total)!==Math.round(sub()+fee())){
+      toast('Prices were updated. Please review your order and try again.');
+      renderOrder();return resetPayBtn();
+    }
+
+    // 3. Open Paystack with the server's reference and amount
+    let finished=false;
+    const first=v('name').split(' ')[0];
+    PaystackPop.setup({
+      key:CONFIG.paystackKey,
+      email:v('email'),
+      amount:Math.round(o.o_total*100),
+      currency:'NGN',
+      ref:o.o_ref,
+      metadata:{custom_fields:[
+        {display_name:'Name',variable_name:'name',value:v('name')},
+        {display_name:'Phone',variable_name:'phone',value:v('phone')}
+      ]},
+      callback:function(r){finished=true;confirmPayment(o.o_ref,o.o_total,first)},
+      onClose:function(){if(!finished){resetPayBtn();toast('Payment window closed. Your cart is saved.')}}
+    }).openIframe();
+
+  }catch(err){
+    toast('Something went wrong. Please try again.');
+    resetPayBtn();
+  }
 });
+
 renderGrid();renderCart();
 </script>
 </body>
