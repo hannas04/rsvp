@@ -649,6 +649,7 @@ footer p{font-family:var(--sans);font-size:.6rem;letter-spacing:.34em;text-trans
 <script>
 const SB_URL="https://wwxqphxhdrhcusvjffka.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3eHFwaHhoZHJoY3VzdmpmZmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDMxMTYsImV4cCI6MjEwOTE3OTExNn0.Ltw3iL2EeX3E-utG66gRE2r-MtBeNQ1IJEhpy4mY730";
+const EVENT_SLUG="emma-lucas";
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 (function(){
 "use strict";
@@ -986,27 +987,44 @@ $('#hash').addEventListener('click',()=>{navigator.clipboard?.writeText($('#hash
 })();
 
 /* ---------- RSVP ---------- */
-let plus=0;const setPlus=n=>{plus=Math.max(0,Math.min(5,n));$('#plusN').textContent=plus};
+let plus=0,sending=false;const setPlus=n=>{plus=Math.max(0,Math.min(5,n));$('#plusN').textContent=plus};
 $('#minus').onclick=()=>setPlus(plus-1);$('#plus').onclick=()=>setPlus(plus+1);
 
 $('#rsvpForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const name=$('#name').value.trim(),phone=$('#phone').value.trim(),st=$('#status').value;
-  const mark=(el,ok)=>el.closest('.f').classList.toggle('bad',!ok);
-  const a=name.length>2,b=/^[+\d][\d\s-]{7,}$/.test(phone),c=!!st;
-  mark($('#name'),a);mark($('#phone'),b);mark($('#status'),c);
-  if(!(a&&b&&c))return;
+  if(sending)return;
+  const name=$('#name').value.trim();
+  const phone=$('#phone').value.replace(/[\s()\[\]-]/g,'');
+  const status=$('#status').value;
+  const nameField=$('#name'),phoneField=$('#phone'),statusField=$('#status');
+  const validName=name.length>=3;
+  const validPhone=/^(?:0(?:70|80|81|90|91)\d{8}|\+234(?:70|80|81|90|91)\d{8})$/.test(phone);
+  const validStatus=status==='attending'||status==='declining';
+  const mark=(el,valid,message)=>{
+    el.closest('.f').classList.toggle('bad',!valid);
+    el.closest('.f').querySelector('.err').textContent=message;
+  };
+  mark(nameField,validName,'Please enter your full name (at least 3 characters).');
+  mark(phoneField,validPhone,'Enter a valid Nigerian phone number, e.g. 0803... or +234 803....');
+  mark(statusField,validStatus,'Please select attending or declining.');
+  if(!(validName&&validPhone&&validStatus))return;
 
-  const btn=$('#send');btn.classList.add('loading');
-  const {error}=await sb.from('rsvps').insert({name,phone,status:st,plus_ones:plus});
-  btn.classList.remove('loading');
+  const btn=$('#send'),plusOnes=Number(plus);
+  sending=true;btn.disabled=true;btn.classList.add('loading');
+  try{
+    const {error}=await sb.rpc('submit_rsvp',{p_event:EVENT_SLUG,p_name:name,p_phone:phone,p_status:status,p_plus:plusOnes});
+    if(error){toast(`Could not send your RSVP: ${error.message}`);return}
 
-  if(error){toast('Could not send. Please try again.');return}
-
-  $('#thanksMsg').textContent=st==='attending'
-    ?`${name.split(' ')[0]}, we can't wait to celebrate with you${plus?` and your ${plus} guest${plus>1?'s':''}`:''}.`
-    :`${name.split(' ')[0]}, you will be missed. Thank you for letting us know.`;
-  $('#rsvpCard').classList.add('sent');dirty=true;req();
+    $('#thanksMsg').textContent=status==='attending'
+      ?`${name.split(/\s+/)[0]}, we can't wait to celebrate with you${plusOnes?` and your ${plusOnes} guest${plusOnes>1?'s':''}`:''}.`
+      :`${name.split(/\s+/)[0]}, you will be missed. Thank you for letting us know.`;
+    $('#rsvpCard').classList.add('sent');dirty=true;req();
+  }catch(error){
+    const message=error instanceof Error?error.message:String(error);
+    toast(`Could not send your RSVP. Please try again. ${message}`);
+  }finally{
+    sending=false;btn.disabled=false;btn.classList.remove('loading');
+  }
 });
 
 })();
