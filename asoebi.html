@@ -189,6 +189,7 @@ const STATES=["Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue",
 /* ===== SUPABASE — paste your anon/public key below (Project Settings → API) ===== */
 const SB_URL="https://wwxqphxhdrhcusvjffka.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3eHFwaHhoZHJoY3VzdmpmZmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MDMxMTYsImV4cCI6MjEwOTE3OTExNn0.Ltw3iL2EeX3E-utG66gRE2r-MtBeNQ1IJEhpy4mY730";
+const EVENT_SLUG="emma-lucas";
 /* ============================================================== */
 
 let sb=null;
@@ -322,6 +323,7 @@ $('#form').addEventListener('submit',async e=>{
     // 1. The server creates the order and decides the price
     const items=Object.entries(cart).map(([id,yards])=>({id,yards}));
     const {data,error}=await sb.rpc('create_order',{
+      p_event:EVENT_SLUG,
       p_name:v('name'),p_phone:v('phone'),p_email:v('email'),
       p_address:v('addr'),p_city:v('city'),p_state:v('state'),
       p_landmark:v('note'),p_items:items
